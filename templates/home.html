@@ -1,11 +1,142 @@
-<!DOCTYPE html>
+]<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tax Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <h1>Welcome to the Tax Management System</h1>
+    <div class="hamburger-menu" onclick="toggleSidebar()">
+        <div></div>
+        <div></div>
+        <div></div>
+    </div>
+
+    <div id="mySidebar" class="sidebar">
+        <a href="javascript:void(0)" class="closebtn" onclick="toggleSidebar()">&times;</a>
+        <a href="{{ url_for('tax_calculator') }}">Tax Calculator</a>
+        <a href="#" onclick="showUploadForm()">Upload Tax Document</a>
+        <a href="{{ url_for('profile') }}">View Profile</a>
+        <div id="tax-documents">
+            <h3>Tax Documents</h3>
+            <ul id="document-list"></ul>
+        </div>
+    </div>
+
+    <div class="content" id="mainContent">
+        <div class="container">
+            <h1>Welcome {{ first_name }} to the Tax Management System</h1>
+
+            <div class="welcome-section">
+                <h2>About Our Tax Management System</h2>
+                <p>Our Tax Management System is designed to simplify your tax calculations and document management. Whether you're an individual or a business owner, we've got you covered with our easy-to-use tools and secure document storage.</p>
+
+                <h3>Key Features:</h3>
+                <ul>
+                    <li><strong>Tax Calculator:</strong> Quickly estimate your taxes based on your income.</li>
+                    <li><strong>Document Upload:</strong> Securely store and manage your tax-related documents.</li>
+                    <li><strong>User-Friendly Interface:</strong> Navigate easily through our intuitive design.</li>
+                </ul>
+
+                <h3>Getting Started:</h3>
+                <ol>
+                    <li>Use the sidebar menu to access different features.</li>
+                    <li>Try our Tax Calculator to get a quick estimate of your taxes.</li>
+                    <li>Upload and store your important tax documents securely.</li>
+                </ol>
+            </div>
+
+            {% if current_user.is_authenticated %}
+                <div id="uploadForm" style="display: none;">
+                    <h2>Upload Tax Document</h2>
+                    <form action="{{ url_for('upload_document') }}" method="post" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <input type="file" name="file" accept=".pdf,.doc,.docx">
+                        </div>
+                        <input type="submit" value="Upload" class="btn">
+                    </form>
+                </div>
+            {% endif %}
+            
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <ul class="flashes">
+                        {% for message in messages %}
+                            <li>{{ message }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            {% endwith %}
+        </div>
+    </div>
+
+    <script>
+        function toggleSidebar() {
+            var sidebar = document.getElementById("mySidebar");
+            var content = document.getElementById("mainContent");
+            if (sidebar.style.width === "250px") {
+                sidebar.style.width = "0";
+                content.style.marginLeft = "0";
+            } else {
+                sidebar.style.width = "250px";
+                content.style.marginLeft = "250px";
+            }
+        }
+
+        function loadDocuments() {
+            fetch('/get_documents')
+                .then(response => response.json())
+                .then(data => {
+                    const documentList = document.getElementById('document-list');
+                    documentList.innerHTML = '';
+                    data.forEach(doc => {
+                        const li = document.createElement('li');
+                        const link = document.createElement('a');
+                        link.href = `/download_document/${doc.id}`;
+                        link.textContent = doc.filename;
+                        li.appendChild(link);
+                        
+                        const removeButton = document.createElement('button');
+                        removeButton.textContent = 'Remove';
+                        removeButton.onclick = function() {
+                            if (confirm('Are you sure you want to remove this document?')) {
+                                fetch(`/remove_document/${doc.id}`, { method: 'POST' })
+                                    .then(() => loadDocuments());
+                            }
+                        };
+                        li.appendChild(removeButton);
+                        
+                        documentList.appendChild(li);
+                    });
+                });
+        }
+
+        // Call loadDocuments when the page loads and after uploading a file
+        document.addEventListener('DOMContentLoaded', loadDocuments);
+        
+        // Modify the showUploadForm function
+        function showUploadForm() {
+            var uploadForm = document.getElementById("uploadForm");
+            uploadForm.style.display = uploadForm.style.display === "none" ? "block" : "none";
+            if (uploadForm.style.display === "block") {
+                loadDocuments(); // Refresh the document list when showing the form
+            }
+        }
+
+        // Add event listener to the upload form
+        document.querySelector('#uploadForm form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            var formData = new FormData(this);
+            fetch('/upload_document', {
+                method: 'POST',
+                body: formData
+            }).then(response => response.text())
+            .then(data => {
+                loadDocuments(); // Refresh the document list after uploading
+                this.reset(); // Reset the form to allow new uploads
+            });
+        });
+    </script>
 </body>
 </html>
